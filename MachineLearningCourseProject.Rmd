@@ -1,0 +1,83 @@
+---
+title: "MachineLearningProject"
+author: "Jun Yue"
+date: "2022/2/23"
+output: html_document
+---
+# **Synopsis**
+Using data from accelerometers on the belt,forearm, arm, and dumbell of 6 perticipants who were asked to perform barbell lifts correctly and incorrectly in 5 different ways, we will predict the manner in which they did the exercise.
+# **Getting data & Cleaning data**
+## Load library
+```{r}
+library(caret);library(rpart);library(rpart.plot)
+library(rattle);library(randomForest)
+```
+## Getting data
+```{r}
+train_data <- read.csv("./data/pml-training.csv")
+test_data <- read.csv("./data/pml-testing.csv")
+NAdata <- sapply(train_data,function(x)mean(is.na(x)))>.95
+train_data <- train_data[,NAdata==F]
+train_data <- train_data[,-c(1:7)]
+train_nvz <- nearZeroVar(train_data)
+train_data <- train_data[,-train_nvz]
+train_data$classe <- as.factor(train_data$classe)
+inTrain <- createDataPartition(y=train_data$classe,p=0.7,list = F)
+training <- train_data[inTrain,];testing <- train_data[-inTrain,]
+
+```
+# **Predict Data by various models**
+## Random forest
+```{r}
+modFit_RF <- randomForest(classe~.,data = training)
+modFit_RF
+predict_RF <- predict(modFit_RF,testing,type="class")
+confusionMatrix(predict_RF,testing$classe)$overall
+accuracy_RF <- round(confusionMatrix(predict_RF,testing$classe)$overall[[1]],3)
+accuracy_RF
+```    
+## Generalized Boosted Model(gbm)
+```{r}
+control <- trainControl(method = "cv",number = 3,verboseIter = F)
+modFit_GBM <- train(classe~.,data = training,method="gbm",trControl=control,verbose=F)
+predict_GBM <- predict(modFit_GBM,testing)
+confusionMatrix(predict_GBM,testing$classe)$overall
+accuracy_GBM <- round(confusionMatrix(predict_GBM,testing$classe)$overall[[1]],3)
+accuracy_GBM
+
+```
+## Decision Tree
+```{r}
+modFit_DT <- train(classe~.,data = training,method="rpart")
+fancyRpartPlot(modFit_DT$finalModel)
+```
+```{r}
+predict_DT <- predict(modFit_DT,testing)
+confusionMatrix(predict_DT,testing$classe)$overall
+accuracy_DT <- round(confusionMatrix(predict_DT,testing$classe)$overall[[1]],3)
+accuracy_DT
+```
+## Results(Accuracy and Out of Sample Error)
+```{r}
+accuracy <- c(accuracy_RF,accuracy_GBM,accuracy_DT)
+results <- data.frame(Model=c("RandomForest","GradientBoosted","DecisionTree"),Accuracy=accuracy,Oos_error=1-accuracy)
+print(results)
+```
+###**The best model is the Random forest model,almost 100% accuracy.Let's use it to our test sets.**
+## Predictions on Test set
+```{r}
+predict_test <- predict(modFit_RF,test_data)
+predict_test
+```
+
+
+
+
+
+
+
+
+
+
+
+
